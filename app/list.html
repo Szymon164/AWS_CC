@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>To-Do List</title>
+</head>
+<body>
+    <h1>To-Do List</h1>
+
+    <form id="taskForm" onsubmit="return false;">
+        <label for="title">Title:</label>
+        <input type="text" id="title" required><br><br>
+
+        <label for="description">Description:</label>
+        <textarea id="description" required></textarea><br><br>
+
+        <label for="dueDate">Due Date:</label>
+        <input type="date" id="dueDate" required><br><br>
+
+        <button onclick="addTask()">Add Task</button>
+        <button onclick="sendData()">Send Data</button>
+    </form>
+
+    <h2>Tasks</h2>
+
+    <div id="taskList">
+        <!-- Task items will be dynamically inserted here -->
+    </div>
+
+    <h2>Filters</h2>
+
+    <label for="statusFilter">Status:</label>
+    <select id="statusFilter" onchange="filterTasks()">
+        <option value="">All</option>
+        <option value="incomplete">Incomplete</option>
+        <option value="completed">Completed</option>
+        <option value="in progress">In progress</option>
+    </select>
+
+    <label for="dueDateFilter">Due Date:</label>
+    <input type="date" id="dueDateFilter" onchange="filterTasks()"><br><br>
+
+    <script>
+        // console.log(DATA);
+        var DATA = {{data|tojson}};
+
+        // Display existing tasks
+        displayTasks();
+
+        // Function to display tasks
+        function displayTasks() {
+            var taskList = document.getElementById("taskList");
+            taskList.innerHTML = "";
+
+            DATA.forEach(function(task) {
+                var taskItem = document.createElement("div");
+                taskItem.innerHTML = `
+                    <h3>${task.title}</h3>
+                    <p>Description: ${task.description}</p>
+                    <p>Due Date: ${task.dueDate}</p>
+                    <p>Status: ${task.status}</p>
+                    <button onclick="updateTask(${task.id})">Update</button>
+                    <button onclick="markComplete(${task.id})">Change status</button>
+                    <button onclick="removeTask(${task.id})">Remove</button>
+                `;
+                taskList.appendChild(taskItem);
+            });
+        }
+
+        // Function to add a new task
+        function addTask() {
+            var title = document.getElementById("title").value;
+            var description = document.getElementById("description").value;
+            var dueDate = document.getElementById("dueDate").value;
+
+            // Generate a new unique ID for the task
+            var newId = DATA.length + 1;
+
+            // Create the new task object
+            var newTask = {
+                id: newId,
+                title: title,
+                description: description,
+                dueDate: dueDate,
+                status: "incomplete"
+            };
+
+            // Add the new task to the data array
+            DATA.push(newTask);
+
+            // Clear the form fields
+            document.getElementById("title").value = "";
+            document.getElementById("description").value = "";
+            document.getElementById("dueDate").value = "";
+
+            // Refresh the task list
+            displayTasks();
+        }
+
+        // Function to update an existing task
+        function updateTask(id) {
+            var task = DATA.find(function(task) {
+                return task.id === id;
+            });
+
+            if (task) {
+                var newTitle = prompt("Enter a new title:", task.title);
+                var newDescription = prompt("Enter a new description:", task.description);
+                var newDueDate = prompt("Enter a new due date (YYYY-MM-DD):", task.dueDate);
+
+                task.title = newTitle || task.title;
+                task.description = newDescription || task.description;
+                task.dueDate = newDueDate || task.dueDate;
+
+                displayTasks();
+            }
+        }
+
+        // Function to mark a task as complete
+        function markComplete(id) {
+            var task = DATA.find(function(task) {
+                return task.id === id;
+            });
+
+            if (task) {
+                if (task.status=="incomplete"){
+                    task.status = "completed";
+                    displayTasks();
+                }
+                else if (task.status=="completed"){
+                    task.status = "in progress";
+                    displayTasks();
+                }
+                else if (task.status=="in progress"){
+                    task.status = "incomplete";
+                    displayTasks();
+                }
+            }
+        }
+
+        // Function to remove a task
+        function removeTask(id) {
+            var index = DATA.findIndex(function(task) {
+                return task.id === id;
+            });
+
+            if (index !== -1) {
+                DATA.splice(index, 1);
+                displayTasks();
+            }
+        }
+
+        // Function to filter tasks
+        function filterTasks() {
+            var statusFilter = document.getElementById("statusFilter").value;
+            var dueDateFilter = document.getElementById("dueDateFilter").value;
+
+            var filteredTasks = DATA.filter(function(task) {
+                if (statusFilter && task.status !== statusFilter) {
+                    return false;
+                }
+                if (dueDateFilter && task.dueDate !== dueDateFilter) {
+                    return false;
+                }
+                return true;
+            });
+
+            displayFilteredTasks(filteredTasks);
+        }
+
+        // Function to display filtered tasks
+        function displayFilteredTasks(tasks) {
+            var taskList = document.getElementById("taskList");
+            taskList.innerHTML = "";
+
+            tasks.forEach(function(task) {
+                var taskItem = document.createElement("div");
+                taskItem.innerHTML = `
+                    <h3>${task.title}</h3>
+                    <p>Description: ${task.description}</p>
+                    <p>Due Date: ${task.dueDate}</p>
+                    <p>Status: ${task.status}</p>
+                    <button onclick="updateTask(${task.id})">Update</button>
+                    <button onclick="markComplete(${task.id})">Change status</button>
+                    <button onclick="removeTask(${task.id})">Remove</button>
+                `;
+                taskList.appendChild(taskItem);
+            });
+        }
+
+        // Function to send the data to a FastAPI endpoint
+        function sendData() {
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/endpoint", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    alert("Data sent successfully!");
+                }
+            };
+            console.log(JSON.stringify(DATA))
+            xhr.send(JSON.stringify(DATA));
+        }
+    </script>
+</body>
+</html>
