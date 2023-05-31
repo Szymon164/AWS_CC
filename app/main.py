@@ -6,6 +6,8 @@ import starlette.status as status
 import psycopg2
 from psycopg2 import sql
 from passlib.context import CryptContext
+from mangum import Mangum
+import os
 
 PGEND_POINT = 'master-db.c6rqhjqgl56o.us-east-1.rds.amazonaws.com' # End_point
 PGDATABASE_NAME = 'awesome-db' # Database Name example: youtube_test_db
@@ -59,6 +61,14 @@ def status_mapper(x):
     
     return 'completed'
 
+def reverse_status_mapper(x):
+    if x=='incomplete':
+        return 0
+    if x=='in progress':
+        return 1
+    
+    return 2
+
 data_mapper = lambda x:{
                 "id": x[1],
                 "title": x[2],
@@ -80,19 +90,29 @@ def get_tasks(list_token):
     result = [data_mapper(i) for i in result]
     return result
 
+def delete_tasks(token):
+    query = sql.SQL(f"""DELETE FROM tasks WHERE "Token"='{token}';""")
+    cursor = conn.cursor()
+    cursor.execute(query)
+    cursor.close()
+    conn.commit()
+
 def insert_tasks(data,token):
+    delete_tasks(token)
     value_str=""
     for record in data:
-        value_str+=f"('{token}','{record['id']}', '{record['title']}', '{record['description']}', '{record['status']}', '{record['dueDate']}',"
+        value_str+=f"('{token}','{record['id']}', '{record['title']}', '{record['description']}', '{reverse_status_mapper(record['status'])}', '{record['dueDate']}'),"
     query = sql.SQL(f"""INSERT INTO tasks
     VALUES {value_str[:-1]};""")
+
+    print(query)
     cursor = conn.cursor()
     cursor.execute(query)
     cursor.close()
     conn.commit()
 
 app = FastAPI()
-templates = Jinja2Templates(directory=".")
+templates = Jinja2Templates(directory=os.path.dirname(__file__))
 
 
 ### REGISTER AND LOGIN
@@ -164,3 +184,5 @@ async def list(request:Request):
     list_token = request.cookies["list_token"]
     insert_tasks(data,list_token)
     return templates.TemplateResponse("list.html", {"request":request, "data":data})
+
+handler = Mangum(app)
