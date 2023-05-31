@@ -33,7 +33,7 @@ conn = psycopg2.connect(conn_string)
 def get_user(username):
     query = sql.SQL(f"""
     SELECT * FROM login
-    WHERE "Username" = '%s';
+    WHERE "Username" = %s;
     """)
     cursor = conn.cursor()
     cursor.execute(query, (username,))
@@ -46,7 +46,7 @@ def insert_user(username,password):
     h=get_password_hash(password)
     query = sql.SQL(f"""
     INSERT INTO login 
-    VALUES ('%s','%s','%s');""")
+    VALUES (%s,%s,%s);""")
     cursor = conn.cursor()
     cursor.execute(query, (username, h, get_password_hash(h)))
     cursor.close()
@@ -79,7 +79,7 @@ data_mapper = lambda x:{
 def get_tasks(list_token):
     query = sql.SQL(f"""
     SELECT * FROM tasks
-    WHERE "Token" = '%s';
+    WHERE "Token" = %s;
     """)
     cursor = conn.cursor()
     cursor.execute(query, (list_token,))
@@ -90,7 +90,7 @@ def get_tasks(list_token):
     return result
 
 def delete_tasks(token):
-    query = sql.SQL(f"""DELETE FROM tasks WHERE "Token"='%s';""")
+    query = sql.SQL(f"""DELETE FROM tasks WHERE "Token"=%s;""")
     cursor = conn.cursor()
     cursor.execute(query, (token,))
     cursor.close()
@@ -98,13 +98,14 @@ def delete_tasks(token):
 
 def insert_tasks(data,token):
     delete_tasks(token)
+    cursor = conn.cursor()
     value_str=""
     for record in data:
         input_vals = (token,record['id'], record['title'], record['description'], reverse_status_mapper(record['status']), record['dueDate'])
-        value_str += cursor.mogrify("('%s','%s', '%s', '%s', '%s', '%s'),", input_vals).decode('utf-8')
+        value_str += cursor.mogrify("(%s,%s, %s, %s, %s, %s),", input_vals).decode('utf-8')
     query = sql.SQL(f"""INSERT INTO tasks
     VALUES {value_str[:-1]};""")
-    cursor = conn.cursor()
+    
     cursor.execute(query)
     cursor.close()
     conn.commit()
