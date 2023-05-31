@@ -9,12 +9,11 @@ from passlib.context import CryptContext
 from mangum import Mangum
 import os
 
-PGEND_POINT = 'master-db.c6rqhjqgl56o.us-east-1.rds.amazonaws.com' # End_point
-PGDATABASE_NAME = 'awesome-db' # Database Name example: youtube_test_db
-PGUSER_NAME = 'HMS' # UserName
-PGPASSWORD = 'DzieciPapierza' # Password
-PORT = '5432'
-
+PGEND_POINT = os.environ['PGEND_POINT'] # End_point
+PGDATABASE_NAME = os.environ['PGDATABASE_NAME']
+PGUSER_NAME = os.environ['PGDATABASE_NAME']
+PGPASSWORD = os.environ['PGPASSWORD']
+PORT = os.environ['PORT']
 
 ### CRYPT
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -34,10 +33,10 @@ conn = psycopg2.connect(conn_string)
 def get_user(username):
     query = sql.SQL(f"""
     SELECT * FROM login
-    WHERE "Username" = '{username}';
+    WHERE "Username" = '%s';
     """)
     cursor = conn.cursor()
-    cursor.execute(query)
+    cursor.execute(query, (username,))
     result = cursor.fetchall()
     cursor.close()
     conn.commit()
@@ -47,9 +46,9 @@ def insert_user(username,password):
     h=get_password_hash(password)
     query = sql.SQL(f"""
     INSERT INTO login 
-    VALUES ('{username}','{h}','{get_password_hash(h)}');""")
+    VALUES ('%s','%s','%s');""")
     cursor = conn.cursor()
-    cursor.execute(query)
+    cursor.execute(query, (username, h, get_password_hash(h)))
     cursor.close()
     conn.commit()
 
@@ -80,10 +79,10 @@ data_mapper = lambda x:{
 def get_tasks(list_token):
     query = sql.SQL(f"""
     SELECT * FROM tasks
-    WHERE "Token" = '{list_token}';
+    WHERE "Token" = '%s';
     """)
     cursor = conn.cursor()
-    cursor.execute(query)
+    cursor.execute(query, (list_token,))
     result = cursor.fetchall()
     cursor.close()
     conn.commit()
@@ -91,9 +90,9 @@ def get_tasks(list_token):
     return result
 
 def delete_tasks(token):
-    query = sql.SQL(f"""DELETE FROM tasks WHERE "Token"='{token}';""")
+    query = sql.SQL(f"""DELETE FROM tasks WHERE "Token"='%s';""")
     cursor = conn.cursor()
-    cursor.execute(query)
+    cursor.execute(query, (token,))
     cursor.close()
     conn.commit()
 
@@ -101,11 +100,10 @@ def insert_tasks(data,token):
     delete_tasks(token)
     value_str=""
     for record in data:
-        value_str+=f"('{token}','{record['id']}', '{record['title']}', '{record['description']}', '{reverse_status_mapper(record['status'])}', '{record['dueDate']}'),"
+        input_vals = (token,record['id'], record['title'], record['description'], reverse_status_mapper(record['status']), record['dueDate'])
+        value_str += cursor.mogrify("('%s','%s', '%s', '%s', '%s', '%s'),", input_vals).decode('utf-8')
     query = sql.SQL(f"""INSERT INTO tasks
     VALUES {value_str[:-1]};""")
-
-    print(query)
     cursor = conn.cursor()
     cursor.execute(query)
     cursor.close()
