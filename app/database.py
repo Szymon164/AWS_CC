@@ -1,17 +1,13 @@
 import psycopg2
 from psycopg2 import sql
-from .crypt import get_password_hash
+from crypt import get_password_hash
+import os
 
-# PGEND_POINT = os.environ['PGEND_POINT'] # End_point
-# PGDATABASE_NAME = os.environ['PGDATABASE_NAME']
-# PGUSER_NAME = os.environ['PGDATABASE_NAME']
-# PGPASSWORD = os.environ['PGPASSWORD']
-# PORT = os.environ['PORT']
-PGEND_POINT = 'master-db.c6rqhjqgl56o.us-east-1.rds.amazonaws.com'
-PGDATABASE_NAME = 'awesome-db'
-PGUSER_NAME = 'HMS'
-PGPASSWORD = 'DzieciPapierza'
-PORT = '5432'
+PGEND_POINT = os.environ['PGEND_POINT'] # End_point
+PGDATABASE_NAME = os.environ['PGDATABASE_NAME']
+PGUSER_NAME = os.environ['PGDATABASE_NAME']
+PGPASSWORD = os.environ['PGPASSWORD']
+PORT = os.environ['PORT']
 
 conn_string = "host="+ PGEND_POINT +" port="+ PORT +" dbname="+ PGDATABASE_NAME +" user=" + PGUSER_NAME \
                 +" password="+ PGPASSWORD
@@ -66,7 +62,7 @@ data_mapper = lambda x:{
                 "id": x[1],
                 "title": x[2],
                 "description": x[3],
-                "dueDate": x[5].strftime('%Y-%m-%d'),
+                "dueDate": x[5].strftime('%Y-%m-%d') if x[5]!=None else '',
                 "status": status_mapper[x[4]]
                 }
 
@@ -96,7 +92,7 @@ def insert_tasks(data,token):
     value_str=""
     if len(data)!=0:
         for id,record in enumerate(data):
-            input_vals = (token,id, record['title'], record['description'], reverse_status_mapper[record['status']], record['dueDate'])
+            input_vals = (token,id, record['title'], record['description'], reverse_status_mapper[record['status']], record['dueDate'] if record['dueDate']!= '' else None)
             value_str += cursor.mogrify("(%s,%s, %s, %s, %s, %s),", input_vals).decode('utf-8')
         query = sql.SQL(f"""INSERT INTO tasks
         VALUES {value_str[:-1]};""")

@@ -5,8 +5,8 @@ from ast import literal_eval
 import starlette.status as status
 from mangum import Mangum
 import os
-from utils.database import *
-from utils.crypt import *
+from database import *
+from crypt import *
 
 app = FastAPI()
 templates = Jinja2Templates(directory=os.path.dirname(__file__))
