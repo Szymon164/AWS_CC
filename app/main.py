@@ -48,10 +48,32 @@ def insert_user(username,password):
     INSERT INTO login 
     VALUES (%s,%s,%s);""")
     cursor = conn.cursor()
-    cursor.execute(query, (username, h, get_password_hash(h)))
+    token = get_password_hash(h)
+    cursor.execute(query, (username, h, token))
     cursor.close()
     conn.commit()
+    return token
 
+def delete_user(username):
+    get_user(username)
+    query = sql.SQL(f"""
+    DELETE FROM tasks
+    WHERE "Token" = %s;
+    """)
+    cursor = conn.cursor()
+    cursor.execute(query, (get_user(username)[0][2],))
+    cursor.close()
+    conn.commit()
+    query = sql.SQL(f"""
+    DELETE FROM login
+    WHERE "Username" = %s;
+    """)
+    cursor = conn.cursor()
+    cursor.execute(query, (username,))
+    cursor.close()
+    conn.commit()
+    
+    
 def status_mapper(x):
     if x==0:
         return 'incomplete'
@@ -100,15 +122,15 @@ def insert_tasks(data,token):
     delete_tasks(token)
     cursor = conn.cursor()
     value_str=""
-    for record in data:
-        input_vals = (token,record['id'], record['title'], record['description'], reverse_status_mapper(record['status']), record['dueDate'])
-        value_str += cursor.mogrify("(%s,%s, %s, %s, %s, %s),", input_vals).decode('utf-8')
-    query = sql.SQL(f"""INSERT INTO tasks
-    VALUES {value_str[:-1]};""")
-    
-    cursor.execute(query)
-    cursor.close()
-    conn.commit()
+    if len(data)!=0:
+        for record in data:
+            input_vals = (token,record['id'], record['title'], record['description'], reverse_status_mapper(record['status']), record['dueDate'])
+            value_str += cursor.mogrify("(%s,%s, %s, %s, %s, %s),", input_vals).decode('utf-8')
+        query = sql.SQL(f"""INSERT INTO tasks
+        VALUES {value_str[:-1]};""")
+        cursor.execute(query)
+        cursor.close()
+        conn.commit()
 
 app = FastAPI()
 templates = Jinja2Templates(directory=os.path.dirname(__file__))
@@ -144,7 +166,7 @@ async def register(request:Request):
     elif len(username)<5 or len(password)<5:
         data="Username and password should consist of at least 5 characters"
     else:
-        insert_user(username,password)
+        token = insert_user(username,password)
         data="Registered correctly"
     response = templates.TemplateResponse("register.html", {"request": request,"data":data})
     return response
